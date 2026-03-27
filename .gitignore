@@ -1,0 +1,8 @@
+node_modules/
+client/node_modules/
+client/android/app/build/
+client/ios/
+*.apk
+server/sos-server
+server/sos.db
+.DS_Store
