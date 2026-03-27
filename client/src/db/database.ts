@@ -1,19 +1,17 @@
-import SQLite from 'react-native-sqlite-storage';
+import {open, type DB} from '@op-engineering/op-sqlite';
 
-SQLite.enablePromise(true);
-
-let db: SQLite.SQLiteDatabase;
+let db: DB;
 
 export async function initDatabase(): Promise<void> {
-  db = await SQLite.openDatabase({name: 'sos.db', location: 'default'});
-  await db.executeSql(`
+  db = open({name: 'sos.db'});
+  await db.execute(`
     CREATE TABLE IF NOT EXISTS contacts (
       username TEXT PRIMARY KEY,
       public_key TEXT NOT NULL,
       added_at TEXT NOT NULL
     )
   `);
-  await db.executeSql(`
+  await db.execute(`
     CREATE TABLE IF NOT EXISTS messages (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       contact TEXT NOT NULL,
@@ -22,10 +20,10 @@ export async function initDatabase(): Promise<void> {
       timestamp TEXT NOT NULL
     )
   `);
-  await db.executeSql(
+  await db.execute(
     'CREATE INDEX IF NOT EXISTS idx_msg_contact ON messages(contact, timestamp)',
   );
-  await db.executeSql(`
+  await db.execute(`
     CREATE TABLE IF NOT EXISTS keys (
       key TEXT PRIMARY KEY,
       value TEXT NOT NULL
@@ -33,29 +31,24 @@ export async function initDatabase(): Promise<void> {
   `);
 }
 
-// Keys storage (for keypair and auth token)
 export async function setKey(key: string, value: string): Promise<void> {
-  await db.executeSql(
+  await db.execute(
     'INSERT OR REPLACE INTO keys (key, value) VALUES (?, ?)',
     [key, value],
   );
 }
 
 export async function getKey(key: string): Promise<string | null> {
-  const [res] = await db.executeSql(
-    'SELECT value FROM keys WHERE key = ?',
-    [key],
-  );
+  const res = await db.execute('SELECT value FROM keys WHERE key = ?', [key]);
   if (res.rows.length === 0) return null;
-  return res.rows.item(0).value;
+  return res.rows[0].value as string;
 }
 
-// Contacts
 export async function saveContact(
   username: string,
   publicKey: string,
 ): Promise<void> {
-  await db.executeSql(
+  await db.execute(
     'INSERT OR REPLACE INTO contacts (username, public_key, added_at) VALUES (?, ?, ?)',
     [username, publicKey, new Date().toISOString()],
   );
@@ -64,35 +57,30 @@ export async function saveContact(
 export async function getContact(
   username: string,
 ): Promise<{username: string; public_key: string} | null> {
-  const [res] = await db.executeSql(
+  const res = await db.execute(
     'SELECT username, public_key FROM contacts WHERE username = ?',
     [username],
   );
   if (res.rows.length === 0) return null;
-  return res.rows.item(0);
+  return res.rows[0] as {username: string; public_key: string};
 }
 
 export async function getAllContacts(): Promise<
   {username: string; public_key: string}[]
 > {
-  const [res] = await db.executeSql(
+  const res = await db.execute(
     'SELECT username, public_key FROM contacts ORDER BY added_at DESC',
   );
-  const contacts = [];
-  for (let i = 0; i < res.rows.length; i++) {
-    contacts.push(res.rows.item(i));
-  }
-  return contacts;
+  return res.rows as {username: string; public_key: string}[];
 }
 
-// Messages
 export async function saveMessage(
   contact: string,
   direction: 'in' | 'out',
   plaintext: string,
   timestamp?: string,
 ): Promise<void> {
-  await db.executeSql(
+  await db.execute(
     'INSERT INTO messages (contact, direction, plaintext, timestamp) VALUES (?, ?, ?, ?)',
     [contact, direction, plaintext, timestamp || new Date().toISOString()],
   );
@@ -105,22 +93,17 @@ export async function getMessages(
 ): Promise<
   {id: number; direction: string; plaintext: string; timestamp: string}[]
 > {
-  const [res] = await db.executeSql(
+  const res = await db.execute(
     'SELECT id, direction, plaintext, timestamp FROM messages WHERE contact = ? ORDER BY timestamp DESC LIMIT ? OFFSET ?',
     [contact, limit, offset],
   );
-  const msgs = [];
-  for (let i = 0; i < res.rows.length; i++) {
-    msgs.push(res.rows.item(i));
-  }
-  return msgs.reverse();
+  return (res.rows as {id: number; direction: string; plaintext: string; timestamp: string}[]).reverse();
 }
 
-// Get chat list with last message
 export async function getChatList(): Promise<
   {username: string; lastMessage: string; lastTime: string}[]
 > {
-  const [res] = await db.executeSql(`
+  const res = await db.execute(`
     SELECT c.username,
       m.plaintext as lastMessage,
       m.timestamp as lastTime
@@ -129,9 +112,5 @@ export async function getChatList(): Promise<
       AND m.id = (SELECT MAX(id) FROM messages WHERE contact = c.username)
     ORDER BY m.timestamp DESC, c.added_at DESC
   `);
-  const chats = [];
-  for (let i = 0; i < res.rows.length; i++) {
-    chats.push(res.rows.item(i));
-  }
-  return chats;
+  return res.rows as {username: string; lastMessage: string; lastTime: string}[];
 }

@@ -6,3 +6,4 @@ client/ios/
 server/sos-server
 server/sos.db
 .DS_Store
+client/src/config.ts
