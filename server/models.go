@@ -32,9 +32,12 @@ type WSMessage struct {
 }
 
 type AuthRequest struct {
-	Username  string `json:"username"`
-	Password  string `json:"password"`
-	PublicKey string `json:"public_key,omitempty"`
+	Username     string `json:"username"`
+	Password     string `json:"password,omitempty"`      // plaintext (deprecated)
+	PublicKey    string `json:"public_key,omitempty"`     // user's E2E public key
+	EphemeralKey string `json:"ephemeral_key,omitempty"` // encrypted auth
+	Encrypted    string `json:"encrypted,omitempty"`     // encrypted password
+	Nonce        string `json:"nonce,omitempty"`          // nonce for decryption
 }
 
 type AuthResponse struct {

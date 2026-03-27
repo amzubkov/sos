@@ -19,7 +19,9 @@ func main() {
 	}
 
 	initDB(*dbPath)
+	initServerKeys()
 
+	http.HandleFunc("/handshake", handleHandshake)
 	http.HandleFunc("/register", handleRegister)
 	http.HandleFunc("/login", handleLogin)
 	http.HandleFunc("/search", handleSearch)

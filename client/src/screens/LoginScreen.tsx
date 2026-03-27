@@ -8,6 +8,8 @@ import {
   Alert,
   ActivityIndicator,
 } from 'react-native';
+import nacl from 'tweetnacl';
+import {encodeBase64, decodeBase64, decodeUTF8} from 'tweetnacl-util';
 import {SERVER_URL} from '../config';
 import {generateKeyPair} from '../crypto/e2e';
 import {setKey} from '../db/database';
@@ -30,13 +32,35 @@ export default function LoginScreen({onAuth}: Props) {
 
     setLoading(true);
     try {
-      let body: any = {username: username.trim(), password};
+      // Fetch server public key for encrypted auth
+      const hsRes = await fetch(`${SERVER_URL}/handshake`);
+      if (!hsRes.ok) {
+        Alert.alert('Error', 'Failed to connect to server');
+        return;
+      }
+      const {public_key: serverPubB64} = await hsRes.json();
+      const serverPub = decodeBase64(serverPubB64);
+
+      // Encrypt password with ephemeral key + server public key
+      const ephemeral = nacl.box.keyPair();
+      const nonce = nacl.randomBytes(nacl.box.nonceLength);
+      const encrypted = nacl.box(
+        decodeUTF8(password),
+        nonce,
+        serverPub,
+        ephemeral.secretKey,
+      );
+
+      let body: any = {
+        username: username.trim(),
+        ephemeral_key: encodeBase64(ephemeral.publicKey),
+        encrypted: encodeBase64(encrypted),
+        nonce: encodeBase64(nonce),
+      };
 
       if (isRegister) {
-        // Generate keypair on registration
         const kp = generateKeyPair();
         body.public_key = kp.publicKey;
-        // Save secret key locally
         await setKey('secretKey', kp.secretKey);
         await setKey('publicKey', kp.publicKey);
       }

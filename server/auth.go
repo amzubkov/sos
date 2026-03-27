@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strings"
 	"time"
@@ -50,6 +51,17 @@ func extractToken(r *http.Request) string {
 	return r.URL.Query().Get("token")
 }
 
+// extractPassword decrypts the password if sent encrypted, or returns plaintext
+func extractPassword(req AuthRequest) (string, error) {
+	if req.EphemeralKey != "" && req.Encrypted != "" && req.Nonce != "" {
+		return decryptPassword(req.EphemeralKey, req.Encrypted, req.Nonce)
+	}
+	if req.Password != "" {
+		return req.Password, nil
+	}
+	return "", fmt.Errorf("no password provided")
+}
+
 func handleRegister(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
@@ -66,16 +78,22 @@ func handleRegister(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "username must be 2-32 chars", http.StatusBadRequest)
 		return
 	}
-	if len(req.Password) < 4 {
-		http.Error(w, "password must be at least 4 chars", http.StatusBadRequest)
-		return
-	}
 	if req.PublicKey == "" {
 		http.Error(w, "public_key is required", http.StatusBadRequest)
 		return
 	}
 
-	hash, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
+	password, err := extractPassword(req)
+	if err != nil {
+		http.Error(w, "password decryption failed", http.StatusBadRequest)
+		return
+	}
+	if len(password) < 4 {
+		http.Error(w, "password must be at least 4 chars", http.StatusBadRequest)
+		return
+	}
+
+	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
 		http.Error(w, "server error", http.StatusInternalServerError)
 		return
@@ -112,13 +130,19 @@ func handleLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	password, err := extractPassword(req)
+	if err != nil {
+		http.Error(w, "password decryption failed", http.StatusBadRequest)
+		return
+	}
+
 	user, err := getUserByUsername(req.Username)
 	if err != nil {
 		http.Error(w, "invalid credentials", http.StatusUnauthorized)
 		return
 	}
 
-	if err := bcrypt.CompareHashAndPassword([]byte(user.PassHash), []byte(req.Password)); err != nil {
+	if err := bcrypt.CompareHashAndPassword([]byte(user.PassHash), []byte(password)); err != nil {
 		http.Error(w, "invalid credentials", http.StatusUnauthorized)
 		return
 	}
