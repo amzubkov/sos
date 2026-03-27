@@ -29,6 +29,8 @@ type WSMessage struct {
 	MessageID  int64  `json:"message_id,omitempty"`
 	Text       string `json:"text,omitempty"`
 	Timestamp  string `json:"timestamp,omitempty"`
+	SDP        string `json:"sdp,omitempty"`       // WebRTC session description
+	Candidate  string `json:"candidate,omitempty"` // WebRTC ICE candidate
 }
 
 type AuthRequest struct {

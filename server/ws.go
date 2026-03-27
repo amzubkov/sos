@@ -106,6 +106,8 @@ func handleWS(w http.ResponseWriter, r *http.Request) {
 			handleAck(msg)
 		case "key_request":
 			handleKeyRequest(username, msg)
+		case "call_offer", "call_answer", "call_ice", "call_hangup":
+			handleCallSignal(username, msg)
 		}
 	}
 }
@@ -152,6 +154,16 @@ func handleKeyRequest(from string, msg WSMessage) {
 		From:      msg.To,
 		PublicKey: user.PublicKey,
 	})
+}
+
+func handleCallSignal(from string, msg WSMessage) {
+	if msg.To == "" {
+		hub.send(from, WSMessage{Type: "error", Text: "missing 'to' field"})
+		return
+	}
+	if !hub.send(msg.To, msg) {
+		hub.send(from, WSMessage{Type: "call_hangup", From: msg.To, Text: "user offline"})
+	}
 }
 
 func deliverPending(username string) {

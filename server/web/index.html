@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SOS</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: -apple-system, system-ui, sans-serif; background: #0a0a0a; color: #fff; height: 100vh; overflow: hidden; }
+
+/* Auth */
+#auth { display: flex; justify-content: center; align-items: center; height: 100vh; }
+.auth-box { width: 340px; padding: 32px; }
+.auth-box h1 { font-size: 48px; text-align: center; margin-bottom: 8px; }
+.auth-box p { color: #888; text-align: center; margin-bottom: 24px; }
+.auth-box input { width: 100%; background: #1a1a1a; border: 1px solid #333; border-radius: 12px; padding: 14px 16px; color: #fff; font-size: 15px; margin-bottom: 10px; outline: none; }
+.auth-box input:focus { border-color: #2563eb; }
+.auth-box button { width: 100%; background: #2563eb; border: none; border-radius: 12px; padding: 14px; color: #fff; font-size: 15px; font-weight: 600; cursor: pointer; margin-top: 6px; }
+.auth-box button:hover { background: #1d4ed8; }
+.auth-box .link { color: #2563eb; text-align: center; margin-top: 14px; cursor: pointer; font-size: 14px; }
+
+/* App layout */
+#app { display: none; height: 100vh; }
+.layout { display: flex; height: 100%; }
+.sidebar { width: 300px; background: #111; border-right: 1px solid #222; display: flex; flex-direction: column; }
+.sidebar-header { padding: 16px; display: flex; align-items: center; border-bottom: 1px solid #222; }
+.sidebar-header h2 { flex: 1; font-size: 20px; }
+.sidebar-header .user { color: #666; font-size: 13px; margin-left: 8px; }
+.sidebar-header button { background: #222; border: none; color: #fff; width: 32px; height: 32px; border-radius: 16px; cursor: pointer; font-size: 16px; margin-left: 6px; }
+.sidebar-header button:hover { background: #333; }
+.contact-list { flex: 1; overflow-y: auto; }
+.contact-item { display: flex; align-items: center; padding: 12px 16px; cursor: pointer; border-bottom: 1px solid #1a1a1a; }
+.contact-item:hover, .contact-item.active { background: #1a1a1a; }
+.avatar { width: 40px; height: 40px; border-radius: 20px; background: #2563eb; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 18px; flex-shrink: 0; }
+.contact-info { margin-left: 12px; flex: 1; overflow: hidden; }
+.contact-name { font-weight: 500; font-size: 15px; }
+.contact-preview { color: #888; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 2px; }
+.contact-time { color: #666; font-size: 11px; }
+
+/* Chat area */
+.chat-area { flex: 1; display: flex; flex-direction: column; }
+.chat-header { padding: 16px; border-bottom: 1px solid #222; background: #111; display: flex; align-items: center; }
+.chat-header h3 { flex: 1; font-size: 17px; }
+.chat-header button { background: #22c55e; border: none; color: #fff; padding: 8px 16px; border-radius: 16px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.chat-header button:hover { background: #16a34a; }
+.messages { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; }
+.msg { max-width: 65%; padding: 10px 14px; border-radius: 16px; margin-bottom: 6px; word-wrap: break-word; }
+.msg-out { background: #2563eb; align-self: flex-end; border-bottom-right-radius: 4px; }
+.msg-in { background: #1a1a1a; align-self: flex-start; border-bottom-left-radius: 4px; }
+.msg-text { font-size: 14px; line-height: 1.4; }
+.msg-time { font-size: 10px; color: rgba(255,255,255,0.5); text-align: right; margin-top: 4px; }
+.input-bar { display: flex; padding: 12px; background: #111; border-top: 1px solid #222; }
+.input-bar input { flex: 1; background: #1a1a1a; border: none; border-radius: 20px; padding: 10px 16px; color: #fff; font-size: 14px; outline: none; }
+.input-bar button { margin-left: 8px; background: #2563eb; border: none; border-radius: 20px; padding: 10px 20px; color: #fff; font-weight: 600; cursor: pointer; font-size: 14px; }
+.input-bar button:hover { background: #1d4ed8; }
+.no-chat { flex: 1; display: flex; align-items: center; justify-content: center; color: #444; font-size: 16px; }
+
+/* Search modal */
+.modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 10; justify-content: center; align-items: flex-start; padding-top: 80px; }
+.modal-overlay.show { display: flex; }
+.modal { background: #111; border-radius: 16px; width: 360px; padding: 20px; border: 1px solid #222; }
+.modal h3 { margin-bottom: 12px; }
+.modal .search-row { display: flex; gap: 8px; margin-bottom: 12px; }
+.modal input { flex: 1; background: #1a1a1a; border: 1px solid #333; border-radius: 10px; padding: 10px 14px; color: #fff; font-size: 14px; outline: none; }
+.modal button { background: #2563eb; border: none; border-radius: 10px; padding: 10px 16px; color: #fff; cursor: pointer; font-weight: 600; }
+.modal .result { display: flex; align-items: center; padding: 10px 0; cursor: pointer; border-bottom: 1px solid #1a1a1a; }
+.modal .result:hover { opacity: 0.8; }
+.modal .result .avatar { width: 36px; height: 36px; font-size: 16px; }
+.modal .result span { margin-left: 10px; font-size: 15px; }
+</style>
+</head>
+<body>
+
+<!-- Auth Screen -->
+<div id="auth">
+  <div class="auth-box">
+    <h1>SOS</h1>
+    <p id="auth-subtitle">Sign In</p>
+    <input id="auth-user" placeholder="Username" autocomplete="off">
+    <input id="auth-pass" placeholder="Password" type="password">
+    <button id="auth-btn" onclick="submitAuth()">Login</button>
+    <div class="link" id="auth-toggle" onclick="toggleAuth()">Don't have an account? Register</div>
+  </div>
+</div>
+
+<!-- App -->
+<div id="app">
+  <div class="layout">
+    <div class="sidebar">
+      <div class="sidebar-header">
+        <h2>SOS</h2>
+        <span class="user" id="my-username"></span>
+        <button onclick="showSearch()">+</button>
+        <button onclick="logout()">X</button>
+      </div>
+      <div class="contact-list" id="contact-list"></div>
+    </div>
+    <div class="chat-area" id="chat-area">
+      <div class="no-chat">Select a chat</div>
+    </div>
+  </div>
+</div>
+
+<!-- Search Modal -->
+<div class="modal-overlay" id="search-modal">
+  <div class="modal">
+    <h3>Find User</h3>
+    <div class="search-row">
+      <input id="search-input" placeholder="Username..." onkeydown="if(event.key==='Enter')doSearch()">
+      <button onclick="doSearch()">Search</button>
+    </div>
+    <div id="search-results"></div>
+    <div class="link" style="margin-top:12px" onclick="hideSearch()">Close</div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/tweetnacl@1.0.3/nacl-fast.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/tweetnacl-util@0.15.1/nacl-util.min.js"></script>
+<script>
+const API = location.origin;
+const WS_URL = location.origin.replace('http', 'ws');
+
+let token = localStorage.getItem('token');
+let username = localStorage.getItem('username');
+let secretKey = localStorage.getItem('secretKey');
+let publicKey = localStorage.getItem('publicKey');
+let contacts = JSON.parse(localStorage.getItem('contacts') || '{}');
+let messages = JSON.parse(localStorage.getItem('messages') || '{}');
+let currentChat = null;
+let ws = null;
+let isRegister = false;
+
+// --- Auth ---
+function toggleAuth() {
+  isRegister = !isRegister;
+  document.getElementById('auth-subtitle').textContent = isRegister ? 'Create Account' : 'Sign In';
+  document.getElementById('auth-btn').textContent = isRegister ? 'Register' : 'Login';
+  document.getElementById('auth-toggle').textContent = isRegister
+    ? 'Already have an account? Sign in'
+    : "Don't have an account? Register";
+}
+
+async function submitAuth() {
+  const u = document.getElementById('auth-user').value.trim();
+  const p = document.getElementById('auth-pass').value;
+  if (!u || !p) return alert('Fill in all fields');
+
+  // Handshake
+  const hs = await fetch(API + '/handshake').then(r => r.json());
+  const serverPub = nacl.util.decodeBase64(hs.public_key);
+  const ephemeral = nacl.box.keyPair();
+  const nonce = nacl.randomBytes(nacl.box.nonceLength);
+  const encrypted = nacl.box(nacl.util.decodeUTF8(p), nonce, serverPub, ephemeral.secretKey);
+
+  const body = {
+    username: u,
+    ephemeral_key: nacl.util.encodeBase64(ephemeral.publicKey),
+    encrypted: nacl.util.encodeBase64(encrypted),
+    nonce: nacl.util.encodeBase64(nonce),
+  };
+
+  if (isRegister) {
+    const kp = nacl.box.keyPair();
+    body.public_key = nacl.util.encodeBase64(kp.publicKey);
+    secretKey = nacl.util.encodeBase64(kp.secretKey);
+    publicKey = body.public_key;
+    localStorage.setItem('secretKey', secretKey);
+    localStorage.setItem('publicKey', publicKey);
+  }
+
+  const endpoint = isRegister ? '/register' : '/login';
+  const res = await fetch(API + endpoint, {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(body),
+  });
+
+  if (!res.ok) return alert(await res.text());
+
+  const data = await res.json();
+  token = data.token;
+  username = data.username;
+  localStorage.setItem('token', token);
+  localStorage.setItem('username', username);
+  enterApp();
+}
+
+function logout() {
+  token = null; username = null;
+  localStorage.removeItem('token');
+  localStorage.removeItem('username');
+  if (ws) ws.close();
+  document.getElementById('auth').style.display = 'flex';
+  document.getElementById('app').style.display = 'none';
+}
+
+// --- App ---
+function enterApp() {
+  document.getElementById('auth').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+  document.getElementById('my-username').textContent = '@' + username;
+  renderContacts();
+  connectWS();
+}
+
+function connectWS() {
+  if (ws) ws.close();
+  ws = new WebSocket(WS_URL + '/ws?token=' + token);
+  ws.onmessage = (e) => {
+    const msg = JSON.parse(e.data);
+    if (msg.type === 'chat' && msg.from) {
+      handleIncoming(msg);
+    }
+  };
+  ws.onclose = () => setTimeout(connectWS, 3000);
+}
+
+function handleIncoming(msg) {
+  try {
+    const contact = contacts[msg.from];
+    if (!contact) {
+      // Auto-add contact
+      fetchAndAddContact(msg.from).then(() => handleIncoming(msg));
+      return;
+    }
+    const plaintext = nacl.util.encodeUTF8(
+      nacl.box.open(
+        nacl.util.decodeBase64(msg.ciphertext),
+        nacl.util.decodeBase64(msg.nonce),
+        nacl.util.decodeBase64(contact.public_key),
+        nacl.util.decodeBase64(secretKey)
+      )
+    );
+    addMessage(msg.from, 'in', plaintext, msg.timestamp);
+    if (msg.message_id) ws.send(JSON.stringify({type: 'ack', message_id: msg.message_id}));
+  } catch (e) { console.error('decrypt:', e); }
+}
+
+async function fetchAndAddContact(name) {
+  const res = await fetch(API + '/search?q=' + encodeURIComponent(name), {
+    headers: {Authorization: 'Bearer ' + token}
+  });
+  if (!res.ok) return;
+  const users = await res.json();
+  const found = users.find(u => u.username === name);
+  if (found) {
+    contacts[name] = {public_key: found.public_key};
+    saveContacts();
+    renderContacts();
+  }
+}
+
+// --- Messages ---
+function addMessage(contact, dir, text, ts) {
+  if (!messages[contact]) messages[contact] = [];
+  messages[contact].push({dir, text, ts: ts || new Date().toISOString()});
+  localStorage.setItem('messages', JSON.stringify(messages));
+  renderContacts();
+  if (currentChat === contact) renderChat();
+}
+
+function sendMessage() {
+  const input = document.getElementById('msg-input');
+  const text = input.value.trim();
+  if (!text || !currentChat || !contacts[currentChat]) return;
+
+  const theirPub = nacl.util.decodeBase64(contacts[currentChat].public_key);
+  const mySec = nacl.util.decodeBase64(secretKey);
+  const nonce = nacl.randomBytes(nacl.box.nonceLength);
+  const encrypted = nacl.box(nacl.util.decodeUTF8(text), nonce, theirPub, mySec);
+
+  ws.send(JSON.stringify({
+    type: 'chat',
+    to: currentChat,
+    ciphertext: nacl.util.encodeBase64(encrypted),
+    nonce: nacl.util.encodeBase64(nonce),
+  }));
+
+  addMessage(currentChat, 'out', text);
+  input.value = '';
+  input.focus();
+}
+
+// --- Contacts ---
+function saveContacts() {
+  localStorage.setItem('contacts', JSON.stringify(contacts));
+}
+
+function renderContacts() {
+  const el = document.getElementById('contact-list');
+  const names = Object.keys(contacts);
+  // Sort by last message time
+  names.sort((a, b) => {
+    const la = messages[a]?.length ? messages[a][messages[a].length-1].ts : '';
+    const lb = messages[b]?.length ? messages[b][messages[b].length-1].ts : '';
+    return lb.localeCompare(la);
+  });
+  el.innerHTML = names.map(name => {
+    const last = messages[name]?.length ? messages[name][messages[name].length-1] : null;
+    return `<div class="contact-item ${currentChat===name?'active':''}" onclick="openChat('${name}')">
+      <div class="avatar">${name[0].toUpperCase()}</div>
+      <div class="contact-info">
+        <div class="contact-name">@${name}</div>
+        <div class="contact-preview">${last ? last.text : 'No messages'}</div>
+      </div>
+      ${last ? `<div class="contact-time">${new Date(last.ts).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</div>` : ''}
+    </div>`;
+  }).join('');
+}
+
+// --- Chat ---
+function openChat(name) {
+  currentChat = name;
+  renderContacts();
+  renderChat();
+}
+
+function renderChat() {
+  if (!currentChat) return;
+  const msgs = messages[currentChat] || [];
+  document.getElementById('chat-area').innerHTML = `
+    <div class="chat-header">
+      <h3>@${currentChat}</h3>
+    </div>
+    <div class="messages" id="messages-list">
+      ${msgs.map(m => `
+        <div class="msg ${m.dir==='out'?'msg-out':'msg-in'}">
+          <div class="msg-text">${escHtml(m.text)}</div>
+          <div class="msg-time">${new Date(m.ts).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</div>
+        </div>
+      `).join('')}
+    </div>
+    <div class="input-bar">
+      <input id="msg-input" placeholder="Message..." onkeydown="if(event.key==='Enter')sendMessage()">
+      <button onclick="sendMessage()">Send</button>
+    </div>
+  `;
+  const ml = document.getElementById('messages-list');
+  ml.scrollTop = ml.scrollHeight;
+  document.getElementById('msg-input').focus();
+}
+
+function escHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// --- Search ---
+function showSearch() { document.getElementById('search-modal').classList.add('show'); document.getElementById('search-input').focus(); }
+function hideSearch() { document.getElementById('search-modal').classList.remove('show'); }
+
+async function doSearch() {
+  const q = document.getElementById('search-input').value.trim();
+  if (!q) return;
+  const res = await fetch(API + '/search?q=' + encodeURIComponent(q), {
+    headers: {Authorization: 'Bearer ' + token}
+  });
+  if (!res.ok) return;
+  const users = await res.json();
+  document.getElementById('search-results').innerHTML = users.map(u =>
+    `<div class="result" onclick="addContact('${u.username}','${u.public_key}')">
+      <div class="avatar">${u.username[0].toUpperCase()}</div>
+      <span>@${u.username}</span>
+    </div>`
+  ).join('') || '<p style="color:#666;padding:8px 0">No users found</p>';
+}
+
+function addContact(name, pk) {
+  contacts[name] = {public_key: pk};
+  saveContacts();
+  renderContacts();
+  hideSearch();
+  openChat(name);
+}
+
+// --- Init ---
+if (token && username && secretKey) {
+  enterApp();
+}
+</script>
+</body>
+</html>

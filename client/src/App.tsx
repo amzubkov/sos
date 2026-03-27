@@ -1,17 +1,20 @@
-import React, {useEffect, useState} from 'react';
-import {NavigationContainer} from '@react-navigation/native';
+import React, {useEffect, useState, useRef} from 'react';
+import {NavigationContainer, NavigationContainerRef} from '@react-navigation/native';
 import {createNativeStackNavigator} from '@react-navigation/native-stack';
-import {ActivityIndicator, View} from 'react-native';
+import {ActivityIndicator, View, TouchableOpacity, Text} from 'react-native';
 
 import {initDatabase, getKey, setKey, saveMessage, getContact, saveContact} from './db/database';
 import {decrypt} from './crypto/e2e';
 import {socket} from './ws/socket';
 import {WS_URL, SERVER_URL} from './config';
+import {startBackgroundService, stopBackgroundService} from './services/background';
+import {setupChannels} from './services/notifications';
 
 import LoginScreen from './screens/LoginScreen';
 import ChatsScreen from './screens/ChatsScreen';
 import ChatScreen from './screens/ChatScreen';
 import SearchScreen from './screens/SearchScreen';
+import CallScreen from './screens/CallScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -19,6 +22,7 @@ export default function App() {
   const [ready, setReady] = useState(false);
   const [token, setToken] = useState<string | null>(null);
   const [username, setUsername] = useState('');
+  const navRef = useRef<NavigationContainerRef<any>>(null);
 
   useEffect(() => {
     (async () => {
@@ -33,11 +37,16 @@ export default function App() {
     })();
   }, []);
 
-  // Connect WebSocket when authenticated
+  // Connect WebSocket and start background service when authenticated
   useEffect(() => {
     if (!token) return;
+    setupChannels();
     socket.connect(WS_URL, token);
-    return () => socket.disconnect();
+    startBackgroundService();
+    return () => {
+      socket.disconnect();
+      stopBackgroundService();
+    };
   }, [token]);
 
   // Global message handler for incoming messages (when not in chat screen)
@@ -45,6 +54,16 @@ export default function App() {
     if (!token) return;
 
     const unsub = socket.onMessage(async (msg: any) => {
+      // Incoming call
+      if (msg.type === 'call_offer' && msg.from) {
+        navRef.current?.navigate('Call', {
+          contact: msg.from,
+          incoming: true,
+          sdp: msg.sdp,
+        });
+        return;
+      }
+
       if (msg.type === 'chat' && msg.from) {
         try {
           const sk = await getKey('secretKey');
@@ -90,6 +109,7 @@ export default function App() {
   };
 
   const handleLogout = async () => {
+    await stopBackgroundService();
     socket.disconnect();
     setToken(null);
     setUsername('');
@@ -108,7 +128,7 @@ export default function App() {
   }
 
   return (
-    <NavigationContainer>
+    <NavigationContainer ref={navRef}>
       <Stack.Navigator
         screenOptions={{
           headerStyle: {backgroundColor: '#111'},
@@ -127,14 +147,38 @@ export default function App() {
         <Stack.Screen
           name="Chat"
           component={ChatScreen}
-          options={({route}: any) => ({
+          options={({route, navigation}: any) => ({
             title: `@${route.params.contact}`,
+            headerRight: () => (
+              <TouchableOpacity
+                onPress={() =>
+                  navigation.navigate('Call', {
+                    contact: route.params.contact,
+                    incoming: false,
+                  })
+                }
+                style={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: 18,
+                  backgroundColor: '#22c55e',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}>
+                <Text style={{color: '#fff', fontSize: 16}}>C</Text>
+              </TouchableOpacity>
+            ),
           })}
         />
         <Stack.Screen
           name="Search"
           component={SearchScreen}
           options={{title: 'Find User', headerShown: false}}
+        />
+        <Stack.Screen
+          name="Call"
+          component={CallScreen}
+          options={{headerShown: false, gestureEnabled: false}}
         />
       </Stack.Navigator>
     </NavigationContainer>

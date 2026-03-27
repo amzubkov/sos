@@ -21,9 +21,10 @@ import {socket} from '../ws/socket';
 
 interface Props {
   route: any;
+  navigation: any;
 }
 
-export default function ChatScreen({route}: Props) {
+export default function ChatScreen({route, navigation}: Props) {
   const {contact} = route.params;
   const [messages, setMessages] = useState<any[]>([]);
   const [text, setText] = useState('');
