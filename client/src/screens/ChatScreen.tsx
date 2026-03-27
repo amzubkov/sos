@@ -13,6 +13,8 @@ import {useFocusEffect} from '@react-navigation/native';
 import {encrypt, decrypt} from '../crypto/e2e';
 import {
   getMessages,
+  isMuted,
+  setMuted,
   saveMessage,
   getContact,
   getKey,
@@ -30,12 +32,48 @@ export default function ChatScreen({route, navigation}: Props) {
   const [text, setText] = useState('');
   const [mySecretKey, setMySecretKey] = useState('');
   const [theirPublicKey, setTheirPublicKey] = useState('');
+  const [muted, setMutedState] = useState(false);
   const flatListRef = useRef<FlatList>(null);
+
+  // Mute toggle in header
+  useEffect(() => {
+    navigation.setOptions({
+      headerRight: () => (
+        <View style={{flexDirection: 'row', gap: 8, alignItems: 'center'}}>
+          <TouchableOpacity
+            onPress={async () => {
+              await setMuted(contact, !muted);
+              setMutedState(!muted);
+            }}
+            style={{paddingHorizontal: 8, paddingVertical: 4}}>
+            <Text style={{color: muted ? '#ef4444' : '#666', fontSize: 13}}>
+              {muted ? 'Unmute' : 'Mute'}
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() =>
+              navigation.navigate('Call', {contact, incoming: false})
+            }
+            style={{
+              width: 36,
+              height: 36,
+              borderRadius: 18,
+              backgroundColor: '#22c55e',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}>
+            <Text style={{color: '#fff', fontSize: 16}}>C</Text>
+          </TouchableOpacity>
+        </View>
+      ),
+    });
+  }, [contact, muted, navigation]);
 
   useEffect(() => {
     (async () => {
       const sk = await getKey('secretKey');
       if (sk) setMySecretKey(sk);
+      setMutedState(await isMuted(contact));
 
       const c = await getContact(contact);
       if (c) setTheirPublicKey(c.public_key);

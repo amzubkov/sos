@@ -1,6 +1,6 @@
 import BackgroundService from 'react-native-background-actions';
 import {socket} from '../ws/socket';
-import {getKey, getContact, saveContact, saveMessage} from '../db/database';
+import {getKey, getContact, saveContact, saveMessage, isMuted} from '../db/database';
 import {decrypt} from '../crypto/e2e';
 import {WS_URL, SERVER_URL} from '../config';
 import {
@@ -51,12 +51,18 @@ const backgroundTask = async () => {
           socket.send({type: 'ack', message_id: msg.message_id});
         }
 
-        await showMessageNotification(msg.from, plaintext);
+        const muted = await isMuted(msg.from);
+        if (!muted) {
+          await showMessageNotification(msg.from, plaintext);
+        }
       } catch (e) {
         console.error('bg decrypt error:', e);
       }
     } else if (msg.type === 'call_offer' && msg.from) {
-      await showCallNotification(msg.from);
+      const muted = await isMuted(msg.from);
+      if (!muted) {
+        await showCallNotification(msg.from);
+      }
     }
   });
 

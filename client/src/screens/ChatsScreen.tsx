@@ -5,9 +5,10 @@ import {
   FlatList,
   TouchableOpacity,
   StyleSheet,
+  Alert,
 } from 'react-native';
 import {useFocusEffect} from '@react-navigation/native';
-import {getChatList} from '../db/database';
+import {getChatList, setMuted} from '../db/database';
 
 interface Props {
   navigation: any;
@@ -18,11 +19,31 @@ interface Props {
 export default function ChatsScreen({navigation, username, onLogout}: Props) {
   const [chats, setChats] = useState<any[]>([]);
 
-  useFocusEffect(
-    useCallback(() => {
-      getChatList().then(setChats);
-    }, []),
-  );
+  const loadChats = useCallback(() => {
+    getChatList().then(setChats);
+  }, []);
+
+  useFocusEffect(loadChats);
+
+  const toggleMute = (contact: string, currentlyMuted: boolean) => {
+    const action = currentlyMuted ? 'Unmute' : 'Mute';
+    Alert.alert(
+      `${action} @${contact}?`,
+      currentlyMuted
+        ? 'You will receive notifications again'
+        : 'You will not receive notifications',
+      [
+        {text: 'Cancel', style: 'cancel'},
+        {
+          text: action,
+          onPress: async () => {
+            await setMuted(contact, !currentlyMuted);
+            loadChats();
+          },
+        },
+      ],
+    );
+  };
 
   return (
     <View style={styles.container}>
@@ -44,9 +65,7 @@ export default function ChatsScreen({navigation, username, onLogout}: Props) {
       {chats.length === 0 ? (
         <View style={styles.empty}>
           <Text style={styles.emptyText}>No chats yet</Text>
-          <Text style={styles.emptyHint}>
-            Tap + to find someone
-          </Text>
+          <Text style={styles.emptyHint}>Tap + to find someone</Text>
         </View>
       ) : (
         <FlatList
@@ -57,14 +76,20 @@ export default function ChatsScreen({navigation, username, onLogout}: Props) {
               style={styles.chatItem}
               onPress={() =>
                 navigation.navigate('Chat', {contact: item.username})
-              }>
+              }
+              onLongPress={() => toggleMute(item.username, !!item.muted)}>
               <View style={styles.avatar}>
                 <Text style={styles.avatarText}>
                   {item.username[0].toUpperCase()}
                 </Text>
               </View>
               <View style={styles.chatInfo}>
-                <Text style={styles.chatName}>@{item.username}</Text>
+                <View style={styles.chatNameRow}>
+                  <Text style={styles.chatName}>@{item.username}</Text>
+                  {!!item.muted && (
+                    <Text style={styles.mutedBadge}>muted</Text>
+                  )}
+                </View>
                 <Text style={styles.chatPreview} numberOfLines={1}>
                   {item.lastMessage || 'No messages'}
                 </Text>
@@ -128,7 +153,9 @@ const styles = StyleSheet.create({
   },
   avatarText: {color: '#fff', fontSize: 20, fontWeight: 'bold'},
   chatInfo: {flex: 1, marginLeft: 12},
+  chatNameRow: {flexDirection: 'row', alignItems: 'center', gap: 6},
   chatName: {color: '#fff', fontSize: 16, fontWeight: '500'},
+  mutedBadge: {color: '#666', fontSize: 11, backgroundColor: '#1a1a1a', paddingHorizontal: 6, paddingVertical: 1, borderRadius: 4},
   chatPreview: {color: '#888', fontSize: 14, marginTop: 2},
   chatTime: {color: '#666', fontSize: 12},
 });

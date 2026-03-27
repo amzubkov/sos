@@ -147,27 +147,8 @@ export default function App() {
         <Stack.Screen
           name="Chat"
           component={ChatScreen}
-          options={({route, navigation}: any) => ({
+          options={({route}: any) => ({
             title: `@${route.params.contact}`,
-            headerRight: () => (
-              <TouchableOpacity
-                onPress={() =>
-                  navigation.navigate('Call', {
-                    contact: route.params.contact,
-                    incoming: false,
-                  })
-                }
-                style={{
-                  width: 36,
-                  height: 36,
-                  borderRadius: 18,
-                  backgroundColor: '#22c55e',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}>
-                <Text style={{color: '#fff', fontSize: 16}}>C</Text>
-              </TouchableOpacity>
-            ),
           })}
         />
         <Stack.Screen

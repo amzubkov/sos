@@ -29,6 +29,12 @@ export async function initDatabase(): Promise<void> {
       value TEXT NOT NULL
     )
   `);
+  // Migration: add muted column
+  try {
+    await db.execute('ALTER TABLE contacts ADD COLUMN muted INTEGER NOT NULL DEFAULT 0');
+  } catch (_) {
+    // column already exists
+  }
 }
 
 export async function setKey(key: string, value: string): Promise<void> {
@@ -56,13 +62,23 @@ export async function saveContact(
 
 export async function getContact(
   username: string,
-): Promise<{username: string; public_key: string} | null> {
+): Promise<{username: string; public_key: string; muted: number} | null> {
   const res = await db.execute(
-    'SELECT username, public_key FROM contacts WHERE username = ?',
+    'SELECT username, public_key, muted FROM contacts WHERE username = ?',
     [username],
   );
   if (res.rows.length === 0) return null;
-  return res.rows[0] as {username: string; public_key: string};
+  return res.rows[0] as {username: string; public_key: string; muted: number};
+}
+
+export async function setMuted(username: string, muted: boolean): Promise<void> {
+  await db.execute('UPDATE contacts SET muted = ? WHERE username = ?', [muted ? 1 : 0, username]);
+}
+
+export async function isMuted(username: string): Promise<boolean> {
+  const res = await db.execute('SELECT muted FROM contacts WHERE username = ?', [username]);
+  if (res.rows.length === 0) return false;
+  return (res.rows[0] as {muted: number}).muted === 1;
 }
 
 export async function getAllContacts(): Promise<
@@ -101,10 +117,11 @@ export async function getMessages(
 }
 
 export async function getChatList(): Promise<
-  {username: string; lastMessage: string; lastTime: string}[]
+  {username: string; lastMessage: string; lastTime: string; muted: number}[]
 > {
   const res = await db.execute(`
     SELECT c.username,
+      c.muted,
       m.plaintext as lastMessage,
       m.timestamp as lastTime
     FROM contacts c
@@ -112,5 +129,5 @@ export async function getChatList(): Promise<
       AND m.id = (SELECT MAX(id) FROM messages WHERE contact = c.username)
     ORDER BY m.timestamp DESC, c.added_at DESC
   `);
-  return res.rows as {username: string; lastMessage: string; lastTime: string}[];
+  return res.rows as {username: string; lastMessage: string; lastTime: string; muted: number}[];
 }
