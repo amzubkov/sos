@@ -48,6 +48,11 @@ func createUser(username, passHash, publicKey string) error {
 	return err
 }
 
+func updatePublicKey(username, publicKey string) error {
+	_, err := db.Exec("UPDATE users SET public_key = ? WHERE username = ?", publicKey, username)
+	return err
+}
+
 func getUserByUsername(username string) (*User, error) {
 	u := &User{}
 	err := db.QueryRow(

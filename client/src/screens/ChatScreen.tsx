@@ -6,8 +6,7 @@ import {
   TouchableOpacity,
   FlatList,
   StyleSheet,
-  KeyboardAvoidingView,
-  Platform,
+  Alert,
 } from 'react-native';
 import {useFocusEffect} from '@react-navigation/native';
 import {encrypt, decrypt} from '../crypto/e2e';
@@ -39,32 +38,16 @@ export default function ChatScreen({route, navigation}: Props) {
   useEffect(() => {
     navigation.setOptions({
       headerRight: () => (
-        <View style={{flexDirection: 'row', gap: 8, alignItems: 'center'}}>
-          <TouchableOpacity
-            onPress={async () => {
-              await setMuted(contact, !muted);
-              setMutedState(!muted);
-            }}
-            style={{paddingHorizontal: 8, paddingVertical: 4}}>
-            <Text style={{color: muted ? '#ef4444' : '#666', fontSize: 13}}>
-              {muted ? 'Unmute' : 'Mute'}
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            onPress={() =>
-              navigation.navigate('Call', {contact, incoming: false})
-            }
-            style={{
-              width: 36,
-              height: 36,
-              borderRadius: 18,
-              backgroundColor: '#22c55e',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}>
-            <Text style={{color: '#fff', fontSize: 16}}>C</Text>
-          </TouchableOpacity>
-        </View>
+        <TouchableOpacity
+          onPress={async () => {
+            await setMuted(contact, !muted);
+            setMutedState(!muted);
+          }}
+          style={{paddingHorizontal: 12, paddingVertical: 4}}>
+          <Text style={{color: muted ? '#ef4444' : '#666', fontSize: 13}}>
+            {muted ? 'Unmute' : 'Mute'}
+          </Text>
+        </TouchableOpacity>
       ),
     });
   }, [contact, muted, navigation]);
@@ -118,7 +101,11 @@ export default function ChatScreen({route, navigation}: Props) {
 
   const sendMessage = async () => {
     const trimmed = text.trim();
-    if (!trimmed || !theirPublicKey || !mySecretKey) return;
+    if (!trimmed) return;
+    if (!mySecretKey || !theirPublicKey) {
+      Alert.alert('Error', 'Encryption keys not ready. Try reopening the chat.');
+      return;
+    }
 
     try {
       const {ciphertext, nonce} = encrypt(trimmed, theirPublicKey, mySecretKey);
@@ -137,10 +124,7 @@ export default function ChatScreen({route, navigation}: Props) {
   };
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      keyboardVerticalOffset={90}>
+    <View style={styles.container}>
       <FlatList
         ref={flatListRef}
         data={messages}
@@ -179,7 +163,7 @@ export default function ChatScreen({route, navigation}: Props) {
           <Text style={styles.sendBtnText}>Send</Text>
         </TouchableOpacity>
       </View>
-    </KeyboardAvoidingView>
+    </View>
   );
 }
 

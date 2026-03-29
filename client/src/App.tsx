@@ -7,8 +7,8 @@ import {initDatabase, getKey, setKey, saveMessage, getContact, saveContact} from
 import {decrypt} from './crypto/e2e';
 import {socket} from './ws/socket';
 import {WS_URL, SERVER_URL} from './config';
-import {startBackgroundService, stopBackgroundService} from './services/background';
-import {setupChannels} from './services/notifications';
+// import {startBackgroundService, stopBackgroundService} from './services/background';
+// import {setupChannels} from './services/notifications';
 
 import LoginScreen from './screens/LoginScreen';
 import ChatsScreen from './screens/ChatsScreen';
@@ -40,12 +40,12 @@ export default function App() {
   // Connect WebSocket and start background service when authenticated
   useEffect(() => {
     if (!token) return;
-    setupChannels();
+    // setupChannels();
     socket.connect(WS_URL, token);
-    startBackgroundService();
+    // startBackgroundService();
     return () => {
       socket.disconnect();
-      stopBackgroundService();
+      // stopBackgroundService();
     };
   }, [token]);
 
@@ -109,7 +109,7 @@ export default function App() {
   };
 
   const handleLogout = async () => {
-    await stopBackgroundService();
+    // await stopBackgroundService();
     socket.disconnect();
     setToken(null);
     setUsername('');

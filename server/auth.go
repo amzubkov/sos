@@ -147,6 +147,11 @@ func handleLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Update public key if provided (e.g., after app reinstall)
+	if req.PublicKey != "" {
+		updatePublicKey(req.Username, req.PublicKey)
+	}
+
 	token, err := generateToken(req.Username)
 	if err != nil {
 		http.Error(w, "server error", http.StatusInternalServerError)

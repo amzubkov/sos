@@ -12,7 +12,7 @@ import nacl from 'tweetnacl';
 import {encodeBase64, decodeBase64, decodeUTF8} from 'tweetnacl-util';
 import {SERVER_URL} from '../config';
 import {generateKeyPair} from '../crypto/e2e';
-import {setKey} from '../db/database';
+import {setKey, getKey} from '../db/database';
 
 interface Props {
   onAuth: (token: string, username: string) => void;
@@ -58,7 +58,9 @@ export default function LoginScreen({onAuth}: Props) {
         nonce: encodeBase64(nonce),
       };
 
-      if (isRegister) {
+      // Always generate/ensure keypair exists
+      const existingSecret = await getKey('secretKey');
+      if (isRegister || !existingSecret) {
         const kp = generateKeyPair();
         body.public_key = kp.publicKey;
         await setKey('secretKey', kp.secretKey);
